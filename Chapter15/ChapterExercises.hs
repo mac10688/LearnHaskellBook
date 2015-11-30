@@ -152,7 +152,6 @@ instance (Q.Arbitrary a, Q.Arbitrary b) => Q.Arbitrary (Or a b) where
     Q.frequency [(1, return $ Fst a)
               ,(1, return $ Snd b)]
 
-
 newtype Combine a b =
   Combine { unCombine :: a -> b }
 
@@ -163,18 +162,33 @@ instance Monoid b => Monoid (Combine a b) where
   mempty = Combine $ \_ -> mempty
   x `mappend` y = Combine $ \n -> unCombine x n `mappend` unCombine y n
 
--- instance (Q.Arbitrary b, Ord a, Finite a) => Q.Arbitrary (Combine a b) where
-  -- arbitrary = Combine <$> sequenceA (const Q.arbitrary)
+instance Show (a -> b) where
+  show _ = "Test function"
+
+prop_CombineAssociative :: (Eq b, Show b, Monoid b) => (a -> b) -> (a -> b) -> (a -> b) -> a -> Bool
+prop_CombineAssociative a b c d = let
+                        a' = Combine a
+                        b' = Combine b
+                        c' = Combine c
+                        in unCombine ((a' M.<> b') M.<> c') d == unCombine (a' M.<> (b' M.<> c')) d
+
+prop_CombineLeftIdentity :: (Eq b, Show b, Monoid b) => (a -> b) -> a -> Bool
+prop_CombineLeftIdentity f a =
+  let f' = Combine f in unCombine (f' M.<> mempty) a == f a
+
+prop_CombineRightIdentity :: (Eq b, Show b, Monoid b) => (a -> b) -> a -> Bool
+prop_CombineRightIdentity f a =
+  let f' = Combine f in unCombine (mempty M.<> f') a == f a
 
 instance (Q.Arbitrary a) => Q.Arbitrary (Sum a) where
   arbitrary = do
     x <- Q.arbitrary
     return $ Sum x
 
-newtype Comp a = Comp {unComp :: a -> a}
+-- instance  Q.CoArbitrary (Sum a) where
+  -- coarbitrary = Q.coarbitraryShow
 
--- instance (Q.Arbitrary a, Ord a, Finite a) => Q.Arbitrary (Comp a) where
-  -- arbitrary = Comp <$> sequenceA (const Q.arbitrary)
+newtype Comp a = Comp {unComp :: a -> a}
 
 instance Semigroup (Comp a) where
   x <> y = let
@@ -188,6 +202,21 @@ instance Monoid a => Monoid (Comp a) where
       x' = unComp x
       y' = unComp y
       in Comp $ \n -> (x' n) M.<> (y' n)
+
+prop_CompAssociative :: (Eq a, Monoid a) => (a -> a) -> (a -> a) -> (a -> a) -> a -> Bool
+prop_CompAssociative a b c d = let
+  a' = Comp a
+  b' = Comp b
+  c' = Comp c
+  in unComp ((a' M.<> b') M.<> c') d == unComp (a' M.<> (b' M.<> c')) d
+
+prop_CompLeftIdentity :: (Eq a, Monoid a) => (a -> a) -> a -> Bool
+prop_CompLeftIdentity f a =
+  let f' = Comp f in unComp (mempty M.<> f') a == f a
+
+prop_CompRightIdentity :: (Eq a, Monoid a) => (a -> a) -> a -> Bool
+prop_CompRightIdentity f a =
+  let f' = Comp f in unComp (mempty M.<> f') a == f a
 
 data Validation a b =
   Failure a | Success b
@@ -275,12 +304,10 @@ main = do
   Q.quickCheck (prop_Associative :: Or (Sum Int) (Sum Int) -> Or (Sum Int) (Sum Int) -> Or (Sum Int) (Sum Int) -> Bool)
   Q.quickCheck (prop_LeftIdentity :: Or (Sum Int) (Sum Int) -> Bool)
   Q.quickCheck (prop_RightIdentity :: Or (Sum Int) (Sum Int) -> Bool)
-  -- Q.quickCheck (prop_Associative :: Combine Bool (Sum Int) -> Combine Bool (Sum Int) -> Combine Bool (Sum Int) -> Bool)
-  -- Q.quickCheck (prop_LeftIdentity :: Combine Bool (Sum Int) -> Bool)
-  -- Q.quickCheck (prop_RightIdentity :: Combine Bool (Sum Int) -> Bool)
-  -- Q.quickCheck (prop_Associative :: Comp (Sum Word8) -> Comp (Sum Word8) -> Comp (Sum Word8) -> Bool)
-  -- Q.quickCheck (prop_LeftIdentity :: Comp (Sum Word8) -> Bool)
-  -- Q.quickCheck (prop_RightIdentity :: Comp (Sum Word8) -> Bool)
+  Q.quickCheck (prop_CombineAssociative :: (Int -> (Sum Int)) -> (Int -> (Sum Int)) -> (Int -> (Sum Int)) -> Int -> Bool)
+  Q.quickCheck (prop_CombineLeftIdentity :: (Int -> (Sum Int)) -> Int -> Bool)
+  Q.quickCheck (prop_CombineRightIdentity :: (Int -> (Sum Int)) -> Int -> Bool)
+  Q.quickCheck (prop_CompAssociative :: ((Sum Int) -> (Sum Int)) -> ((Sum Int) -> (Sum Int)) -> ((Sum Int) -> (Sum Int)) -> (Sum Int) -> Bool)
   Q.quickCheck (prop_Associative :: Validation (Sum Int) (Sum Int) -> Validation (Sum Int) (Sum Int) -> Validation (Sum Int) (Sum Int) -> Bool)
   Q.quickCheck (prop_Associative :: AccumulateRight (Sum Int) (Sum Int) -> AccumulateRight (Sum Int) (Sum Int) -> AccumulateRight (Sum Int) (Sum Int) -> Bool)
   Q.quickCheck (prop_Associative :: AccumulateBoth (Sum Int) (Sum Int) -> AccumulateBoth (Sum Int) (Sum Int) -> AccumulateBoth (Sum Int) (Sum Int) -> Bool)

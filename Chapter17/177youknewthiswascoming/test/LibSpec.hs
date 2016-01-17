@@ -143,7 +143,17 @@ instance Monoid e => Applicative (Validation e) where
     pure = LibSpec.Success
     LibSpec.Success f <*> LibSpec.Success a = LibSpec.Success ( f a)
     LibSpec.Success _ <*> LibSpec.Error a = LibSpec.Error a
-    LibSpec.Error a <*> _ = LibSpec.Error a
+    LibSpec.Error a <*> LibSpec.Success _ = LibSpec.Error a
+    LibSpec.Error a <*> LibSpec.Error a' = LibSpec.Error (a <> a')
+
+instance (CoArbitrary a) => CoArbitrary (Data.Monoid.Sum a) where
+    coarbitrary (Sum x) = coarbitrary x
+
+instance (Eq a, Eq b) => EqProp (LibSpec.Sum a b) where
+   (=-=) = eq
+   
+instance (Eq a, Eq b) => EqProp (LibSpec.Validation a b) where
+    (=-=) = eq
 
 main :: IO ()
 main = quickBatch (monoid Twoo)

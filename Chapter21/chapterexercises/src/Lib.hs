@@ -4,6 +4,7 @@ module Lib where
 import Data.Traversable
 import Data.Monoid
 
+-- 1. Identity -------------------------------------------------------------
 newtype Identity a = Identity a
     deriving (Eq, Ord, Show)
 
@@ -19,7 +20,9 @@ instance Foldable Identity where
 
 instance Traversable Identity where
     traverse f (Identity a) = Identity <$> f a
+-------------------------------------------------------------------
 
+-- 2. Constant -------------------------------------------------------------
 newtype Constant a b = Constant { getConstant :: a }
     deriving (Eq, Show)
 
@@ -35,7 +38,9 @@ instance Monoid a => Foldable (Constant a) where
 
 instance Monoid a => Traversable (Constant a) where
     traverse f (Constant a) = pure $ Constant a
+-------------------------------------------------------------------
 
+-- 3. Optional -------------------------------------------------------------
 data Optional a = Nada | Yep a deriving (Eq, Show)
 
 instance Functor Optional where
@@ -56,6 +61,7 @@ instance Traversable Optional where
     traverse _ Nada = pure $ Nada
     traverse f (Yep a) = Yep <$> (f a)
 
+-- 4. List -----------------------------------------------------------------
 data List a = Nil | Cons a (List a)
     deriving (Eq, Show)
 
@@ -86,5 +92,63 @@ instance Applicative List where
 instance Foldable List where
     foldMap f xs = foldList(\item acc -> (f item) <> acc) mempty xs
 
---instance Traversable List where
-traverse f xs = Cons mempty <$> foldMap f xs
+instance Traversable List where
+    traverse _ Nil = pure $ Nil
+    traverse f (Cons x ls) = Cons <$> (f x) <*> traverse f ls 
+
+----------------------------------------------------------------------------
+
+-- 5. Three ----------------------------------------------------------------
+data Three a b c = Three a b c deriving (Eq, Show)
+
+instance Functor (Three a b) where
+    fmap f (Three a b c) = Three a b ( f c)
+
+instance (Monoid a, Monoid b) => Applicative (Three a b) where
+    pure x = Three mempty mempty x
+    (Three fa fb fc) <*> (Three a b c) = Three (fa <> a) (fb <> b) (fc c)
+
+instance Foldable (Three a b) where
+    foldMap f (Three a b c) = f c
+
+instance Traversable (Three a b) where
+    traverse f (Three a b c) = (Three a b) <$> (f c)
+
+----------------------------------------------------------------------------
+
+-- 6. S --------------------------------------------------------------------
+
+data S n a = S (n a) a deriving (Eq, Show)
+
+instance Functor n => Functor (S n) where
+    fmap f (S n a) = S (fmap f n) (f a)
+
+instance Foldable n => Foldable (S n) where
+    foldMap f (S n a) =  foldMap f n <> (f a)
+
+instance Traversable n => Traversable (S n) where
+    traverse f (S n a) = S <$> (traverse f n) <*> (f a)  
+
+-- 7. Tree -----------------------------------------------------------------
+
+data Tree a =
+    Empty
+    | Leaf a
+    | Node (Tree a) a (Tree a)
+    deriving (Eq, Show)
+
+
+instance Functor (Tree) where
+    fmap _ Empty = Empty
+    fmap f (Leaf a) = Leaf (f a)
+    fmap f (Node ln a rn) = Node (fmap f ln) (f a) (fmap f rn)
+
+instance Foldable (Tree) where
+    foldMap _ Empty = mempty
+    foldMap f (Leaf a) = (f a)
+    foldMap f (Node ln a rn) = (foldMap f ln) <> (f a) <> (foldMap f rn)
+
+instance Traversable (Tree) where
+    traverse _ Empty = pure $ Empty
+    traverse f (Leaf a) = Leaf <$> (f a)
+    traverse f (Node ln a rn) = Node <$> (traverse f ln) <*> (f a) <*> (traverse f rn)

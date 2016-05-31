@@ -101,4 +101,19 @@ instance Monad (Reader r) where
 -- combined
 -- (runReader $ second (runReader first "hello") "hello"
 -- (runReader $ second (runReader first r ) r
---
+
+-- with Reader Monad
+getDogRM :: Person -> Dog
+getDogRM = do
+    name <- dogName
+    addy <- address
+    return $ Dog name addy
+
+dogNameR = Reader dogName
+addressR = Reader address
+
+getDogRM' :: Reader Person Dog
+getDogRM' = do
+    name <- dogNameR
+    addy <- addressR
+    return $ Dog name addy

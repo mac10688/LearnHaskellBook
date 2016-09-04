@@ -1,7 +1,41 @@
-module Ip4AddressParser.hs where
+module Ip4AddressParser where
 --6. Write a parser for IPv4 addresses.
+import Data.Word
+import Text.Read
+import Text.Trifecta
 
 data IPAddress = IPAddress Word32 deriving (Eq, Ord, Show)
+
+data Octet = MkOctet Word32
+
+ipAddressParser :: Parser IPAddress
+ipAddressParser = do
+    firstOctet <- octetParser
+    skipPeriod
+    secondOctet <- octetParser
+    skipPeriod
+    thirdOctet <- octetParser
+    skipPeriod
+    fourthOctet <- octetParser
+    return $ createIpAddress firstOctet secondOctet thirdOctet fourthOctet
+
+octetParser :: Parser Octet
+octetParser = do
+    x <- (readMaybe <$> some digit :: Parser (Maybe Word32))
+    case x of
+        Just x -> if x > 255 
+                  then (unexpected ">255") 
+                  else return $ MkOctet x
+        Nothing -> unexpected "Not a number"
+
+skipPeriod :: Parser ()
+skipPeriod = do
+    char '.'
+    return ()
+
+createIpAddress :: Octet -> Octet -> Octet -> Octet -> IPAddress
+createIpAddress (MkOctet o4) (MkOctet o3) (MkOctet o2) (MkOctet o1) = 
+    IPAddress $ (o4*256^3)+(o3*256^2)+(o2*256)+o1
 
 --A 32-bit word is a 32-bit unsigned int. Lowest value is 0 rather than
 --being capable of representing negative numbers, but the highest
@@ -27,4 +61,5 @@ data IPAddress = IPAddress Word32 deriving (Eq, Ord, Show)
 --
 --172.16.254.1 -> 2886794753
 --204.120.0.15 -> 3430416399
--
+
+

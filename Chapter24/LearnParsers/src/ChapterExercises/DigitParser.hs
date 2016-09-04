@@ -1,5 +1,8 @@
 module DigitParser where
 
+import Text.Trifecta
+import Data.Char
+
 -- 2. Write a parser for positive integer values.
 -- Don't reuse the pre-existing digit or integer functions,
 -- but you can use them for inspiration if you get stuck.

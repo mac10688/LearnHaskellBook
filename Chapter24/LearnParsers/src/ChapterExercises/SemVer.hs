@@ -1,9 +1,7 @@
 module SemVer where
 
-import Data.Word
 import Text.Trifecta
 import Control.Applicative
-import Data.Char
 
 -- Relevant to precedence/ordering,
 -- cannot sort numbers like strings.

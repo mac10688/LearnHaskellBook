@@ -69,19 +69,7 @@ skipWhiteSpaceAndComments = do
         Just _ -> skipWhiteSpaceAndComments
         Nothing -> return ()
    
-whiteSpaceString = [r|
 
--- This is a comment
-
-|]
-
-testSkipWhiteSpaceAndCommentsParser :: IO ()
-testSkipWhiteSpaceAndCommentsParser = hspec $ do
-    describe "Testing white space and comment parser" $ do
-        it whiteSpaceString $ do
-            let parsedString = parseString (skipWhiteSpaceAndComments) mempty whiteSpaceString
-                r' = maybeSuccess parsedString
-            r' `shouldBe` Just ()
 
 comment :: Parser()
 comment = do
@@ -90,15 +78,6 @@ comment = do
     char '\n'
     return ()
 
-testCommentString = [r|-- This is a comment|]
-
-testCommentParsing :: IO ()
-testCommentParsing = hspec $ do
-    describe "Testing comment parsing" $ do
-        it testCommentString $ do
-            let parsedComment = parseString comment mempty testCommentString
-                r' = maybeSuccess parsedComment
-            r' `shouldBe` Just ()
 
 parseDate :: Parser Date
 parseDate = do
@@ -123,6 +102,64 @@ parseDate = do
                 11 -> November
                 12 -> December
 
+parseTime :: Parser TimeOfDay
+parseTime = do
+    hour <- read <$> some digit
+    char ':'
+    minute <- read <$> some digit
+    return $ TimeOfDay (Hours hour) (Minutes minute) 0 0
+
+parseDescription :: Parser Description
+parseDescription =  MkDescription <$> manyTill anyChar (try (lookAhead endParser))
+                    where endParser = string "--" <|> string "\n"
+
+
+parseActivityRecord :: Parser ActivityRecord
+parseActivityRecord = do
+    time <- parseTime
+    whiteSpace
+    description <- parseDescription
+    return $ MkActivity time description
+
+parseDayRecord :: Parser DayRecord
+parseDayRecord = do
+    skipWhiteSpaceAndComments
+    string "# "
+    date <- parseDate
+    activities <- some (skipWhiteSpaceAndComments *> 
+                        parseActivityRecord <* 
+                        skipWhiteSpaceAndComments)
+    return $ MkDayRecord date activities
+
+parseLog :: Parser [DayRecord]
+parseLog = many parseDayRecord
+
+-- Tests --
+
+whiteSpaceString = [r|
+
+-- This is a comment
+
+|]
+
+testSkipWhiteSpaceAndCommentsParser :: IO ()
+testSkipWhiteSpaceAndCommentsParser = hspec $ do
+    describe "Testing white space and comment parser" $ do
+        it whiteSpaceString $ do
+            let parsedString = parseString (skipWhiteSpaceAndComments) mempty whiteSpaceString
+                r' = maybeSuccess parsedString
+            r' `shouldBe` Just ()
+
+testCommentString = [r|-- This is a comment|]
+
+testCommentParsing :: IO ()
+testCommentParsing = hspec $ do
+    describe "Testing comment parsing" $ do
+        it testCommentString $ do
+            let parsedComment = parseString comment mempty testCommentString
+                r' = maybeSuccess parsedComment
+            r' `shouldBe` Just ()
+
 testDateString = [r|1988-10-06|]
 
 testDateParsing :: IO()
@@ -133,12 +170,6 @@ testDateParsing = hspec $ do
                 r' = maybeSuccess parsedDate
             r' `shouldBe` (Just $ Date 1988 October 6)
 
-parseTime :: Parser TimeOfDay
-parseTime = do
-    hour <- read <$> some digit
-    char ':'
-    minute <- read <$> some digit
-    return $ TimeOfDay (Hours hour) (Minutes minute) 0 0
 
 testTimeString = [r|10:06|]
 
@@ -150,10 +181,6 @@ testTimeParsing = hspec $ do
                 r' = maybeSuccess parsedTime
             r' `shouldBe` (Just $ TimeOfDay 10 6 0 0)
 
-parseDescription :: Parser Description
-parseDescription =  MkDescription <$> manyTill anyChar (try (lookAhead endParser))
-                    where endParser = string "--" <|> string "\n"
-
 testDescriptionString = [r|This is a test --Here is a comment|]
 
 testDescriptionParsing :: IO()
@@ -163,14 +190,6 @@ testDescriptionParsing = hspec $ do
             let parsedDescription = parseString parseDescription mempty testDescriptionString
                 r' = maybeSuccess parsedDescription
             r' `shouldBe` (Just $ MkDescription "This is a test ")
-
-
-parseActivityRecord :: Parser ActivityRecord
-parseActivityRecord = do
-    time <- parseTime
-    whiteSpace
-    description <- parseDescription
-    return $ MkActivity time description
 
 testActivityRecordString = [r|08:10 Running to the store to grab some stuff --This is comment|]
 
@@ -183,16 +202,6 @@ testActivityRecordTest = hspec $ do
                 timeOfDay = TimeOfDay (Hours 8) (Minutes 10) 0 0
                 description = MkDescription "Running to the store to grab some stuff "
             r' `shouldBe` (Just $ MkActivity timeOfDay description)
-
-parseDayRecord :: Parser DayRecord
-parseDayRecord = do
-    skipWhiteSpaceAndComments
-    string "# "
-    date <- parseDate
-    activities <- some (skipWhiteSpaceAndComments *> 
-                        parseActivityRecord <* 
-                        skipWhiteSpaceAndComments)
-    return $ MkDayRecord date activities
 
 testDayRecordString = [r|
 --This is a comment
@@ -228,5 +237,4 @@ testDayRecordParser = hspec $ do
                 r' = maybeSuccess parsedDayRecord
             r' `shouldBe` (Just testDayRecordExpectedResult)
 
-parseLog :: Parser [DayRecord]
-parseLog = many parseDayRecord
+

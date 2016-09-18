@@ -57,6 +57,7 @@ parseRelease = do
                     release <- some $ parseNumberOrString <* (skipOptional $ char '.')
                     return release
 
+parseMetadata :: Parser Metadata
 parseMetadata = do
     hasMetadata <- optional $ char '+'
     case hasMetadata of

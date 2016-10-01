@@ -4,6 +4,9 @@
 
 module TransformerTypes where
 
+import Control.Monad.Trans.Class
+import Control.Monad.IO.Class
+
 newtype MaybeT m a =
     MaybeT { runMaybeT :: m (Maybe a) }
 
@@ -30,40 +33,70 @@ instance (Monad m) => Monad (MaybeT m) where
               Nothing -> return Nothing
               Just y -> runMaybeT (f y)
 
-newtype EitherT m e a = EitherT { runEitherT :: m (Either e a) }
+instance (MonadIO m) => MonadIO (MaybeT m) where
+    liftIO ioa = MaybeT $ Just <$> (liftIO ioa)
 
-instance Functor m => Functor (EitherT m e) where
+newtype EitherT e m a = EitherT { runEitherT :: m (Either e a) }
+
+instance Functor m => Functor (EitherT e m) where
     fmap f (EitherT ma) = EitherT $ (fmap . fmap) f ma
 
-instance Applicative m => Applicative (EitherT m e) where
+instance Applicative m => Applicative (EitherT e m) where
     pure x = EitherT (pure( pure x))
 
     (EitherT fab) <*> (EitherT a) = EitherT $ (<*>) <$> fab <*> a
 
-instance Monad m => Monad (EitherT m e) where
+instance Monad m => Monad (EitherT e m) where
     return = pure
 
-    (>>=) :: EitherT m e a -> (a -> EitherT m e b) -> EitherT m e b
+    (>>=) :: EitherT e m a -> (a -> EitherT e m b) -> EitherT e m b
     (EitherT me) >>= f = EitherT $ do
         v <- me
         case v of
           (Left e) -> return $ Left e 
           (Right a) -> runEitherT (f a)
 
+instance MonadTrans (EitherT e) where
+    lift ma = EitherT (Right <$> ma)
+
 swapEither :: Either a b -> Either b a
 swapEither (Left a) = Right a
 swapEither (Right b) = Left b
 
 --Hint: write swapEither first, then swapEitherT in terms of the former.
-swapEitherT :: (Functor m) => EitherT m e a -> EitherT m a e
+swapEitherT :: (Functor m) => EitherT e m a -> EitherT a m e
 swapEitherT (EitherT mea) = EitherT $ swapEither <$> mea
 
-eitherT :: Monad m => (a -> m c) -> (b -> m c) -> EitherT m a b -> m c
+eitherT :: Monad m => (a -> m c) -> (b -> m c) -> EitherT a m b -> m c
 eitherT f f' (EitherT mab) = do
     v <- mab
     case v of
       Left a -> (f a)
       Right b -> (f' b)
+
+
+newtype ReaderT r m a = ReaderT { runReaderT :: r -> m a }
+
+instance (Functor m) => Functor (ReaderT r m) where
+    fmap f (ReaderT rma) = ReaderT $ (fmap . fmap) f rma
+
+instance (Applicative m) => Applicative (ReaderT r m) where
+    pure a = ReaderT (pure (pure a))
+
+    (ReaderT fmab) <*> (ReaderT rma) = ReaderT $ (<*>) <$> fmab <*> rma
+
+instance (Monad m) => Monad (ReaderT r m) where
+    return = pure
+
+    (>>=) :: ReaderT r m a -> (a -> ReaderT r m b) -> ReaderT r m b
+    (ReaderT rma) >>= f = ReaderT $ \r -> do
+        a <- rma r
+        runReaderT (f a) r
+
+instance (MonadIO m) => MonadIO (ReaderT r m) where
+    liftIO ios = ReaderT $ \s -> do
+        a <- liftIO ios
+        return a
 
 newtype StateT s m a = StateT { runStateT :: s -> m (a,s) }
 
@@ -126,3 +159,16 @@ instance forall s m . (Monad m) => Monad (StateT s m) where
                 second :: (a,s) -> m (b,s) 
                 second (a, s) = runStateT (f a) s
             in goal
+
+instance MonadTrans (StateT s) where
+    lift m = StateT $ \s -> do
+        a <- m
+        return (a,s)
+
+-- newtype StateT s m a = StateT { runStateT :: s -> m (a,s) }
+instance (MonadIO m) => MonadIO (StateT s m) where
+    liftIO ios = StateT $ \s -> do
+        a <- liftIO ios
+        return (a, s)
+
+

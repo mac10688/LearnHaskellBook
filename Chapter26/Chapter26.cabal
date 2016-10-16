@@ -18,3 +18,6 @@ executable Chapter26
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                     , transformers
+                    , containers
+                    , text
+                    , scotty

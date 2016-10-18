@@ -8,7 +8,7 @@ rDec :: Num a => Reader a a
 rDec = ReaderT $ \r -> Identity (r - 1)
 
 rDec' :: Num a => Reader a a
-rDec' = ReaderT ( Identity . (-) 1)
+rDec' = ReaderT ( Identity . flip (-) 1)
 
 rShow :: Show a => ReaderT a Identity String
 rShow = ReaderT $ \a -> Identity (show a)

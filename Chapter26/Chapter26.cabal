@@ -21,3 +21,4 @@ executable Chapter26
                     , containers
                     , text
                     , scotty
+                    , random

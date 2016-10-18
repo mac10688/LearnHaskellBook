@@ -15,7 +15,7 @@ type GameState = StateT GameScore IO ()
 startGame :: IO ()
 startGame = do
     printPrompt
-    response <-  getLine 
+    response <- getLine 
     case response of
       "q" -> do 
            putStrLn "User pressed q" 
@@ -26,7 +26,7 @@ startGame = do
             x | x < 0 || x > 10 -> startGame
             otherwise -> do 
                 putStrLn ("P: " ++ (show number))
-                cNum <-  randomRIO (0, 10) :: IO Int
+                cNum <- randomRIO (0, 10) :: IO Int
                 putStrLn ("C: " ++ (show cNum))
                 let sum = cNum + number
                 if even sum then

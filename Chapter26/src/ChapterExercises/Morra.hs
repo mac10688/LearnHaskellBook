@@ -60,8 +60,8 @@ playRound = do
     gameScore <- get
     let p1 = player1 gameScore
     let p2 = player2 gameScore
-    p1Guess <- lift $ getPlayerGuess p1
-    p2Guess <- lift $ getPlayerGuess p2
+    p1Guess <- getPlayerGuess p1
+    p2Guess <- getPlayerGuess p2
     lift $ putStrLn $ "P1: " ++ (show p1Guess)
     lift $ putStrLn $ "P2: " ++ (show p2Guess)
     let sum = p1Guess + p2Guess
@@ -86,18 +86,18 @@ playRound = do
       "C" -> playRound
       "Q" -> return ()
 
-getPlayerGuess :: Player -> IO Int
+getPlayerGuess :: Player -> GameState Int
 getPlayerGuess p = do
     case playerType p of
       Human -> do
-        clearScreen
-        putStrLn "Please enter a number between 1-10."
-        response <- getLine
+        lift $ setCursorPosition 0 0 >> clearScreen
+        lift $ putStrLn "Please enter a number between 1-10."
+        response <- lift getLine
         case readMaybe response :: Maybe Int of
           Just x | isGuessValid x -> return x
           Nothing -> getPlayerGuess p
       Computer ->
-          randomRIO (0 , 10)
+          lift $ randomRIO (0 , 10)
 
 incrementPlayerScore :: Player -> Player
 incrementPlayerScore p = MkPlayer {

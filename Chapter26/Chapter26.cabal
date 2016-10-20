@@ -22,3 +22,4 @@ executable Chapter26
                     , text
                     , scotty
                     , random
+                    , ansi-terminal

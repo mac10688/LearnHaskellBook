@@ -80,11 +80,15 @@ playRound = do
         do
             saveState p1' p2'
             lift $ putStrLn "P2 wins"
-    lift $ putStrLn "Would you like to (C)ontinue or (Q)uit?"
-    response <- lift $ getLine
-    case response of
-      "C" -> playRound
-      "Q" -> return ()
+    lift $ putStrLn "Press any key to continue"
+    _ <- lift $ getLine
+    playRound
+    -- lift $ putStrLn "Would you like to (C)ontinue or (Q)uit?"
+    -- response <- lift $ getLine
+    -- case response of
+    --   "C" -> playRound
+    --   "Q" -> return ()
+    --   otherwise -> playRound
 
 getPlayerGuess :: Player -> GameState Int
 getPlayerGuess p = do
@@ -96,8 +100,23 @@ getPlayerGuess p = do
         case readMaybe response :: Maybe Int of
           Just x | isGuessValid x -> return x
           Nothing -> getPlayerGuess p
-      Computer ->
-          lift $ randomRIO (0 , 10)
+      Computer -> do
+          history <- history <$> player1 <$> get
+          lift $ intelligentComputerGuess history
+
+
+intelligentComputerGuess :: [Int] -> IO Int
+intelligentComputerGuess (fst:snd:xs) = scan fst snd xs
+                            where scan fst snd (x:x':x'':xs) = 
+                                   if (fst == x' && snd == x'') then
+                                        if even x then
+                                          return 1
+                                        else
+                                          return 2
+                                   else
+                                      scan fst snd (x':x'':xs)
+                                  scan _ _ _ = randomRIO (0,10)
+intelligentComputerGuess _ = randomRIO (0,10)
 
 incrementPlayerScore :: Player -> Player
 incrementPlayerScore p = MkPlayer {
